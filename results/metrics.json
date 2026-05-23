@@ -1,10 +1,10 @@
 {
   "deep_model": {
-    "iou": 0.9584708606335287,
-    "precision": 0.9588014981273408,
-    "recall": 0.9996403432153317,
-    "f1": 0.9787951201106778,
-    "accuracy": 0.993402516904583
+    "iou": 0.9652133657391333,
+    "precision": 0.9653729763696195,
+    "recall": 0.9998287348644437,
+    "f1": 0.9822988002894113,
+    "accuracy": 0.9945112279823024
   },
   "baseline": {
     "iou": 0.8831818111895642,
@@ -28,33 +28,33 @@
       0.95
     ],
     "observed_positive_fraction": [
-      9.419151865586173e-06,
-      0.0017945267027243972,
-      0.003778337500989437,
-      0.009765625,
-      0.014388489536941051,
-      0.0060606058686971664,
-      0.02777777798473835,
-      0.06459330022335052,
-      0.0734693855047226,
-      0.9833833575248718
+      3.136772647849284e-06,
+      0.0027027027681469917,
+      0.0,
+      0.0017667844658717513,
+      0.004987531341612339,
+      0.015424164943397045,
+      0.02678571455180645,
+      0.02923976629972458,
+      0.07901234924793243,
+      0.9884917140007019
     ],
     "bin_counts": [
-      318500,
-      2229,
-      794,
-      512,
-      417,
-      330,
-      360,
-      418,
-      490,
-      59278
+      318799,
+      2220,
+      869,
+      566,
+      401,
+      389,
+      336,
+      342,
+      405,
+      59001
     ]
   },
   "failure_breakdown": {
-    "deep_clean_iou": 0.9622209279751505,
-    "deep_cloudy_iou": 0.9378928305102802,
+    "deep_clean_iou": 0.9679970320615456,
+    "deep_cloudy_iou": 0.9498327759197325,
     "baseline_clean_iou": 0.9113126402393418,
     "baseline_cloudy_iou": 0.7526676498655331,
     "cloudy_threshold": 0.15
@@ -62,9 +62,9 @@
   "n_test_tiles": 27,
   "data_source": "synthetic",
   "region_name": "rondonia",
-  "checkpoint_path": "/Users/joshuadev/Code/terratrace/checkpoints/fast.pt",
+  "checkpoint_path": "/Users/joshuadev/Desktop/Portfolio Github/Portfolio Github/terratrace/checkpoints/fast.pt",
   "figures": {
-    "calibration": "/Users/joshuadev/Code/terratrace/assets/calibration.png",
-    "metrics_comparison": "/Users/joshuadev/Code/terratrace/assets/metrics_comparison.png"
+    "calibration": "/Users/joshuadev/Desktop/Portfolio Github/Portfolio Github/terratrace/assets/calibration.png",
+    "metrics_comparison": "/Users/joshuadev/Desktop/Portfolio Github/Portfolio Github/terratrace/assets/metrics_comparison.png"
   }
 }

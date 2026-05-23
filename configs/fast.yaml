@@ -1,12 +1,3 @@
-# Fast training config — the default, designed to complete on CPU in well under 30 minutes.
-#
-# Defaults are intentionally conservative: ~1.5M-parameter Siamese U-Net (base_channels=24,
-# depth=4) on 128x128 tiles, AdamW @ 1e-3, batch size 8, twenty epochs. On an Apple M-series
-# CPU this takes a couple of minutes; on a recent Intel laptop CPU, well under fifteen.
-#
-# Switch device to "auto" to let an MPS or CUDA GPU accelerate it. Switch to configs/full.yaml
-# for a deeper model + more epochs intended for a GPU run.
-
 name: fast
 manifest_path: data/processed/manifest.json
 checkpoint_dir: checkpoints
@@ -18,7 +9,7 @@ mlflow_experiment_name: terratrace
 device: auto
 seed: 42
 
-epochs: 20
+epochs: 25
 batch_size: 8
 num_workers: 0
 
