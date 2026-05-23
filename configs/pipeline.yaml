@@ -1,17 +1,17 @@
 # Data-pipeline configuration for TerraTrace.
 #
-# Default study region: a small AOI in Rondonia, Brazil (Amazon basin) — a region with
-# well-documented, ongoing deforestation across 2019–2023. The bounding box is intentionally
-# small (~0.3° square ≈ 33 km) and the tile count is capped so the download never runs away.
-# The pipeline first tries to fetch real Sentinel-2 L2A + Hansen GFC labels from the Microsoft
-# Planetary Computer STAC API; if that fails (no network, repeated errors, or
+# Default study region: a small AOI in Rondonia, Brazil (Amazon basin), where deforestation
+# is well-documented and ongoing across 2019-2023. The bounding box is intentionally small
+# (~0.3 deg square, about 33 km) and the tile count is capped so the download never runs
+# away. The pipeline first tries to fetch real Sentinel-2 L2A + Hansen GFC labels from the
+# Microsoft Planetary Computer STAC API; if that fails (no network, repeated errors, or
 # TERRATRACE_FORCE_SYNTHETIC=1) it falls back to the procedural synthetic generator. Either
 # way, every downstream component receives the same on-disk layout described in the manifest.
 
 output_dir: data/processed
 sample_dir: data/sample
 sample_tiles: 6
-fetch_mode: auto
+fetch_mode: synthetic    # full training set is synthetic; data/sample/ ships real Sentinel-2 tiles separately for the demo. Use 'real' to retrain on Sentinel-2 + Hansen GFC.
 
 real:
   region_name: rondonia

@@ -47,29 +47,22 @@ MAX_RETRIES = 3
 
 
 def _hansen_tile_id(west: float, north: float) -> str:
-    """Build the Hansen granule identifier for the 10° tile covering (west, north).
+    """Build the Hansen granule identifier for the 10 deg tile covering (west, north).
 
-    Hansen tiles are named e.g. "10S_070W" — the latitude/longitude of the **upper-left
-    corner**, rounded **up** in absolute value to the next multiple of 10. The northern
-    hemisphere uses ``N``, southern ``S``; eastern ``E``, western ``W``.
+    Hansen tiles are 10x10 deg and named by their upper-left (north-west) corner. For
+    example, ``10S_070W`` covers latitude [-20, -10] and longitude [-70, -60]. The tile name
+    uses the latitude ceiling (toward zero/north) and the longitude floor (toward -180/west)
+    of the requested point, formatted with the hemisphere letter.
     """
-    # Snap northern edge UP to the next multiple of 10.
-    if north >= 0:
-        lat_int = int(np.ceil(north / 10.0)) * 10
-        lat_hemi = "N"
-    else:
-        lat_int = int(np.ceil(abs(north) / 10.0)) * 10
-        lat_hemi = "S"
-    if west >= 0:
-        lon_int = int(np.floor(west / 10.0)) * 10
-        lon_hemi = "E"
-    else:
-        lon_int = int(np.floor(abs(west) / 10.0) + 10) * 10
-        # the western-edge tile UL is `west` rounded DOWN (more negative) to multiple of 10
-        if west % 10 == 0:
-            lon_int = int(abs(west))
-        lon_hemi = "W"
-    return f"{lat_int:02d}{lat_hemi}_{lon_int:03d}{lon_hemi}"
+    lat_signed = int(np.ceil(north / 10.0)) * 10
+    lat_hemi = "N" if lat_signed >= 0 else "S"
+    lat_val = abs(lat_signed)
+
+    lon_signed = int(np.floor(west / 10.0)) * 10
+    lon_hemi = "E" if lon_signed >= 0 else "W"
+    lon_val = abs(lon_signed)
+
+    return f"{lat_val:02d}{lat_hemi}_{lon_val:03d}{lon_hemi}"
 
 
 def _can_reach_internet(host: str = "planetarycomputer.microsoft.com", port: int = 443) -> bool:
@@ -138,8 +131,7 @@ def fetch_real_tiles(config: RealDataConfig) -> list[Tile] | None:
             )
             return None
 
-        # Read just the requested bands + SCL for each timestamp.
-        before_stack, scl_before, _transform = _read_bands(
+        before_stack, scl_before, transform_ref = _read_bands(
             before_item, config.bands, bbox, target_size_hint=config.tile_size * 32
         )
         if before_stack is None:
@@ -151,7 +143,7 @@ def fetch_real_tiles(config: RealDataConfig) -> list[Tile] | None:
             return None
 
         if before_stack.shape != after_stack.shape:
-            # Align by cropping to the smaller dimensions — STAC items can disagree by ~1px.
+            # STAC items occasionally disagree by ~1px; crop to the smaller dimensions.
             h = min(before_stack.shape[0], after_stack.shape[0])
             w = min(before_stack.shape[1], after_stack.shape[1])
             before_stack = before_stack[:h, :w]
@@ -159,10 +151,9 @@ def fetch_real_tiles(config: RealDataConfig) -> list[Tile] | None:
             scl_before = scl_before[:h, :w]
             scl_after = scl_after[:h, :w]
 
-        # Hansen GFC label: lossyear in [1, 23] gives the year (2001 + n). Filter for losses
-        # that fall strictly between the before and after windows.
         before_year = int(config.before_window.start[:4])
         after_year = int(config.after_window.end[:4])
+        target_transform, target_crs = transform_ref if transform_ref else (None, None)
         label = _build_hansen_label(
             west=config.bbox.west,
             south=config.bbox.south,
@@ -171,6 +162,8 @@ def fetch_real_tiles(config: RealDataConfig) -> list[Tile] | None:
             target_shape=before_stack.shape[:2],
             min_loss_year=before_year + 1,
             max_loss_year=after_year,
+            target_crs=target_crs,
+            target_transform=target_transform,
         )
         if label is None:
             return None
@@ -178,7 +171,6 @@ def fetch_real_tiles(config: RealDataConfig) -> list[Tile] | None:
         cloud_before_full = cloud_mask_from_scl(scl_before)
         cloud_after_full = cloud_mask_from_scl(scl_after)
 
-        # Tile everything.
         tiles: list[Tile] = []
         indices = compute_tile_indices(
             raster_height=before_stack.shape[0],
@@ -213,7 +205,7 @@ def fetch_real_tiles(config: RealDataConfig) -> list[Tile] | None:
         )
         return tiles
 
-    except Exception as exc:  # broad: ANY failure should produce graceful fallback
+    except Exception as exc:  # broad: any failure must produce a graceful fallback
         log.warning(
             "Real-data fetch failed (%s: %s); falling back to synthetic.", type(exc).__name__, exc
         )
@@ -263,7 +255,9 @@ def _read_bands(
             data = ds.read(1, window=window, out_dtype="float32") / 10_000.0
             arrays.append(np.clip(data, 0.0, 1.5))
             if transform_ref is None:
-                transform_ref = (ds.transform, ds.crs)
+                # window_transform gives the affine for the cropped region, which Hansen
+                # uses to align its labels into the Sentinel-2 grid.
+                transform_ref = (ds.window_transform(window), ds.crs)
 
     scl_asset = item.assets.get("SCL")
     scl_data: np.ndarray
@@ -298,14 +292,19 @@ def _build_hansen_label(
     target_shape: tuple[int, int],
     min_loss_year: int,
     max_loss_year: int,
+    target_crs: object | None = None,
+    target_transform: object | None = None,
 ) -> np.ndarray | None:
-    """Download and crop the Hansen GFC lossyear granule covering the bbox, then resample.
+    """Download the Hansen GFC granule covering the bbox and reproject to the target grid.
 
-    Output: a (H, W) uint8 mask where 1 = a Hansen "loss" event in the requested year window.
+    Hansen is published in EPSG:4326 at 30 m; Sentinel-2 L2A is in UTM at 10 m. A naive
+    nearest-neighbour resize ignores the CRS difference and misaligns labels relative to
+    the imagery by tens of metres, fatal for fine-grained segmentation. We use rasterio's
+    warp.reproject for proper coordinate-aware resampling.
     """
     try:
         import rasterio
-        from rasterio.warp import transform_bounds
+        from rasterio.warp import Resampling, reproject, transform_bounds
         from rasterio.windows import from_bounds
     except ImportError:
         return None
@@ -321,20 +320,34 @@ def _build_hansen_label(
                 from_bounds(*window_bbox, transform=ds.transform).round_offsets().round_lengths()
             )
             data = ds.read(1, window=window, out_dtype="int32")
+            src_transform = ds.window_transform(window)
+            src_crs = ds.crs
     except Exception as exc:
         log.warning("Hansen download failed for %s (%s); falling back.", url, exc)
         return None
 
-    # `data` values are years since 2000; e.g. 19 = 2019.
     min_n = min_loss_year - 2000
     max_n = max_loss_year - 2000
-    label = ((data >= min_n) & (data <= max_n)).astype(np.uint8)
+    raw_label = ((data >= min_n) & (data <= max_n)).astype(np.uint8)
 
-    if label.shape != target_shape:
-        with suppress(Exception):
-            from PIL import Image
+    if target_crs is None or target_transform is None or raw_label.shape == target_shape:
+        if raw_label.shape != target_shape:
+            with suppress(Exception):
+                from PIL import Image
 
-            pil = Image.fromarray(label, mode="L")
-            pil = pil.resize((target_shape[1], target_shape[0]), Image.NEAREST)
-            label = np.array(pil, dtype=np.uint8)
-    return label
+                pil = Image.fromarray(raw_label, mode="L")
+                pil = pil.resize((target_shape[1], target_shape[0]), Image.NEAREST)
+                raw_label = np.array(pil, dtype=np.uint8)
+        return raw_label
+
+    dst = np.zeros(target_shape, dtype=np.uint8)
+    reproject(
+        source=raw_label,
+        destination=dst,
+        src_transform=src_transform,
+        src_crs=src_crs,
+        dst_transform=target_transform,
+        dst_crs=target_crs,
+        resampling=Resampling.nearest,
+    )
+    return dst

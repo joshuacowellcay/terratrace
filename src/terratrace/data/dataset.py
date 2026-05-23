@@ -18,6 +18,12 @@ from .manifest import DatasetManifest, TileEntry
 
 Split = Literal["train", "val", "test"]
 
+# Per-channel statistics for Sentinel-2 L2A surface reflectance over the Amazon basin,
+# derived empirically from a sample of the Rondonia AOI. Synthetic tiles fall in the same
+# range so the same normalisation works for both paths.
+S2_BAND_MEANS = np.array([0.10, 0.11, 0.08, 0.27], dtype=np.float32)  # R, G, B, NIR
+S2_BAND_STDS = np.array([0.07, 0.06, 0.05, 0.09], dtype=np.float32)
+
 
 def _load_npz(path: Path) -> np.ndarray:
     with np.load(path) as data:
@@ -25,13 +31,13 @@ def _load_npz(path: Path) -> np.ndarray:
 
 
 class ChangeDetectionDataset(Dataset[dict[str, torch.Tensor]]):
-    """A dataset of (before, after) → forest-loss-mask tuples.
+    """A dataset of (before, after) to forest-loss-mask tuples.
 
     Returns a dict per sample:
         before:   float32 tensor (C, H, W)
         after:    float32 tensor (C, H, W)
-        label:    float32 tensor (H, W)  — 0 or 1
-        weights:  float32 tensor (H, W)  — 1 where the pixel is valid, 0 under cloud
+        label:    float32 tensor (H, W), 0 or 1
+        weights:  float32 tensor (H, W), 1 where the pixel is valid, 0 under cloud
         tile_id:  str (Python string, not a tensor)
     """
 
@@ -42,14 +48,14 @@ class ChangeDetectionDataset(Dataset[dict[str, torch.Tensor]]):
         *,
         root: Path | None = None,
         augment: bool = False,
+        normalize: bool = False,
     ) -> None:
         self.manifest = manifest
         self.split = split
         self.entries: list[TileEntry] = manifest.by_split(split)
-        # Tile paths in the manifest are relative to the manifest's directory; ``root`` is
-        # that directory. Pass it explicitly, or use :meth:`from_manifest_path` below.
         self.root = Path(root) if root is not None else Path(".")
         self.augment = augment
+        self.normalize = normalize
         if not self.entries:
             raise ValueError(f"split '{split}' contains zero tiles")
 
@@ -80,7 +86,10 @@ class ChangeDetectionDataset(Dataset[dict[str, torch.Tensor]]):
         if self.augment:
             before, after, label, weights = self._augment(before, after, label, weights)
 
-        # Channels-last → channels-first.
+        if self.normalize:
+            before = (before - S2_BAND_MEANS) / S2_BAND_STDS
+            after = (after - S2_BAND_MEANS) / S2_BAND_STDS
+
         before_t = torch.from_numpy(np.ascontiguousarray(before.transpose(2, 0, 1)))
         after_t = torch.from_numpy(np.ascontiguousarray(after.transpose(2, 0, 1)))
         return {
@@ -95,7 +104,7 @@ class ChangeDetectionDataset(Dataset[dict[str, torch.Tensor]]):
     def _augment(
         before: np.ndarray, after: np.ndarray, label: np.ndarray, weights: np.ndarray
     ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
-        """Spatial-symmetry augmentation only — no colour jitter (it would distort NDVI)."""
+        """Spatial-symmetry augmentation only. Colour jitter would distort NDVI."""
         if np.random.random() < 0.5:
             before = before[:, ::-1, :]
             after = after[:, ::-1, :]
@@ -106,8 +115,7 @@ class ChangeDetectionDataset(Dataset[dict[str, torch.Tensor]]):
             after = after[::-1, :, :]
             label = label[::-1, :]
             weights = weights[::-1, :]
-        # Random rotation in {0, 90, 180, 270}
-        k = int(np.random.randint(0, 4))
+        k = int(np.random.randint(0, 4))  # rotation by 0/90/180/270
         if k:
             before = np.rot90(before, k=k, axes=(0, 1))
             after = np.rot90(after, k=k, axes=(0, 1))
