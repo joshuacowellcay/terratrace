@@ -72,4 +72,9 @@ yarn-error.log*
 
 # Local artifacts
 results/
+# Commit only the small fast.pt checkpoint that ships with the repo so inference works on a
+# fresh clone. Anything else under checkpoints/ (e.g. full.pt from a GPU training run) is
+# regenerated locally and stays out of git.
+checkpoints/*
+!checkpoints/fast.pt
 checkpoints_full/
