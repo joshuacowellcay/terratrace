@@ -57,7 +57,7 @@ def test_valid_pixel_weights_zeros_invalid_pixels() -> None:
     cb = np.array([[0, 1], [0, 0]], dtype=np.uint8)
     ca = np.array([[0, 0], [1, 0]], dtype=np.uint8)
     w = valid_pixel_weights(cb, ca)
-    # Pixel (0,1) is cloudy in before, (1,0) cloudy in after → both must be zeroed.
+    # Pixel (0,1) is cloudy in before, (1,0) cloudy in after; both must be zeroed.
     np.testing.assert_array_equal(w, np.array([[1.0, 0.0], [0.0, 1.0]], dtype=np.float32))
 
 

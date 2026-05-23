@@ -41,7 +41,7 @@ class BoundingBox(BaseModel):
 
 
 class DateWindow(BaseModel):
-    """Inclusive date range as ISO strings, e.g. "2019-06-01" -> "2019-09-30"."""
+    """Inclusive date range as ISO strings, e.g. "2019-06-01" to "2019-09-30"."""
 
     model_config = ConfigDict(frozen=True)
 
@@ -98,7 +98,7 @@ class SyntheticConfig(BaseModel):
 
 
 class RealDataConfig(BaseModel):
-    """Real-data fetch limits — bounded so a misconfigured run cannot fill the disk."""
+    """Real-data fetch limits; bounded so a misconfigured run cannot fill the disk."""
 
     model_config = ConfigDict(frozen=True)
 

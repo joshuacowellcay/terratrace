@@ -1,21 +1,16 @@
 """Loss functions for the forest-loss segmentation task.
 
-Why both Dice and weighted BCE?
-    Forest-loss is a small minority of pixels (often 1-10% per tile). Plain BCE will happily
-    settle into predicting "no loss" everywhere — the loss curve looks fine and IoU is ~0.
+Forest-loss is a small minority of pixels (often 1-10% per tile). Plain BCE will settle into
+predicting "no loss" everywhere; the loss curve looks fine and IoU is ~0. We combine Dice
+loss (which directly optimises the overlap statistic and handles imbalance because its
+denominator scales with the foreground area) with weighted BCE (which keeps gradients
+informative on confidently-correct pixels and regularises Dice's flat regions). The
+positive-class weight is set to roughly the inverse class prevalence.
 
-    * **Dice loss** directly optimises the overlap statistic. It's the right objective for
-      the headline IoU metric and handles imbalance gracefully (its denominator scales with
-      the foreground area).
-    * **Weighted BCE** keeps gradients informative on confidently-correct pixels and
-      regularises the Dice loss, which otherwise has flat regions. The positive class
-      weight is set to roughly the inverse class prevalence.
-
-A per-pixel **validity mask** (``weights``) zeroes the loss on cloudy pixels: those have no
+A per-pixel validity mask (``weights``) zeroes the loss on cloudy pixels, which have no
 trustworthy label.
 
-Inputs to both losses are raw logits — no sigmoid is applied upstream — so we apply sigmoid
-internally.
+Inputs are raw logits. Sigmoid is applied internally.
 """
 
 from __future__ import annotations
@@ -39,9 +34,7 @@ def soft_dice_loss(
     Shapes:
         logits:  (B, 1, H, W) or (B, H, W)
         target:  (B, H, W) with values in {0, 1}
-        weights: (B, H, W) or None — per-pixel non-negative weight (0 = ignore)
-
-    Returns a scalar tensor.
+        weights: (B, H, W) or None. Per-pixel non-negative weight (0 = ignore).
     """
     if logits.dim() == 4:
         logits = logits.squeeze(1)
@@ -63,7 +56,7 @@ def weighted_bce_loss(
 ) -> torch.Tensor:
     """Binary cross-entropy with positive-class weighting and per-pixel mask.
 
-    ``pos_weight`` upweights the loss on positive (loss) pixels — set to the inverse of
+    ``pos_weight`` upweights the loss on positive (loss) pixels; set to the inverse of
     expected class prevalence (or close to it).
     """
     if logits.dim() == 4:
@@ -85,7 +78,7 @@ class CombinedLossWeights:
 
 
 class CombinedLoss(nn.Module):
-    """Dice + weighted BCE. The two losses are summed with configurable weights."""
+    """Dice + weighted BCE, summed with configurable weights."""
 
     def __init__(self, weights: CombinedLossWeights | None = None) -> None:
         super().__init__()

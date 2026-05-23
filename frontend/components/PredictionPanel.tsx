@@ -62,7 +62,7 @@ export default function PredictionPanel({
         <div className="mt-1 font-mono text-xs text-canopy-900" data-testid="bbox-display">
           {bbox
             ? `W ${bbox.west.toFixed(4)}  S ${bbox.south.toFixed(4)}  E ${bbox.east.toFixed(4)}  N ${bbox.north.toFixed(4)}`
-            : 'no AOI yet — click two corners on the map'}
+            : 'no AOI yet - click two corners on the map'}
         </div>
       </section>
 
@@ -92,7 +92,7 @@ export default function PredictionPanel({
           className="mt-2 rounded bg-canopy-700 px-4 py-2 text-sm font-medium text-white hover:bg-canopy-900 disabled:cursor-not-allowed disabled:opacity-50"
           data-testid="compute-button"
         >
-          {loading ? 'computing…' : 'Compute forest-loss'}
+          {loading ? 'computing...' : 'Compute forest-loss'}
         </button>
         {error && (
           <p className="text-xs text-red-700" data-testid="error">
@@ -160,7 +160,7 @@ export default function PredictionPanel({
 
       <footer className="mt-auto text-xs text-canopy-700">
         <a
-          href="https://github.com/joshuacowell/terratrace"
+          href="https://github.com/joshuacowellcay/terratrace"
           className="underline hover:text-canopy-900"
           target="_blank"
           rel="noreferrer"

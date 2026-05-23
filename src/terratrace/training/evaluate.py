@@ -1,18 +1,15 @@
-"""Full evaluation: deep model AND NDVI baseline on the held-out geographic test split.
+"""Full evaluation: deep model and NDVI baseline on the held-out geographic test split.
 
-What this does:
-  * loads the trained checkpoint and runs it over the test split, collecting per-pixel
-    probabilities so we can report both thresholded metrics and a calibration curve;
-  * calibrates the NDVI baseline threshold on the val split (where the model never saw the
-    data either) and applies it to test — fair comparison, same data;
-  * computes IoU / precision / recall / F1 for the forest-loss class on both, alongside
-    accuracy (kept only for completeness — never headline it alone with this class balance);
-  * produces a failure-mode breakdown: clean tiles vs cloudy tiles, low-loss vs high-loss;
-  * writes everything to ``results/metrics.json`` and figures to ``assets/``;
-  * returns an :class:`EvaluationReport` for downstream consumers (README generator, MODEL_CARD).
+Loads the trained checkpoint and runs it over the test split, collecting per-pixel
+probabilities so we can report both thresholded metrics and a calibration curve. The NDVI
+baseline threshold is calibrated on the val split (which the model also never saw) and
+applied to test, for a fair comparison on the same data. IoU/precision/recall/F1 are
+computed for the forest-loss class on both detectors, alongside accuracy (kept only for
+completeness). The failure breakdown stratifies tiles by cloud fraction. Output: a JSON
+file at ``results/metrics.json`` and figures under ``assets/``.
 
-The headline IoU numbers the README quotes come from this function's output. Never edit the
-README's numbers by hand — re-run ``scripts/evaluate.py``.
+The headline IoU numbers the README quotes come from this function's output. Re-run
+``scripts/evaluate.py`` to refresh; never edit the README's numbers by hand.
 """
 
 from __future__ import annotations
@@ -24,7 +21,7 @@ from pathlib import Path
 
 import matplotlib
 
-matplotlib.use("Agg")  # headless — never try to open a window during evaluation
+matplotlib.use("Agg")  # headless; never try to open a window during evaluation
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
@@ -43,7 +40,7 @@ log = logging.getLogger(__name__)
 
 @dataclass
 class CalibrationCurve:
-    """Reliability-diagram data: predicted-probability bin → observed positive fraction."""
+    """Reliability-diagram data: predicted-probability bin to observed positive fraction."""
 
     bin_centers: list[float]
     observed_positive_fraction: list[float]
@@ -158,9 +155,9 @@ def _calibration_curve(
 ) -> CalibrationCurve:
     """Bin pixels by predicted probability; report the observed positive rate per bin.
 
-    A perfectly-calibrated model lies on the diagonal y = x. Important here because the
+    A perfectly calibrated model lies on the diagonal y = x. Matters here because the
     inference service multiplies the predicted-loss mask by tile area to estimate hectares
-    lost; if probs are systematically over- or under-confident, the hectares figure is wrong.
+    lost; systematically over- or under-confident probabilities give a wrong hectares figure.
     """
     mask = weights.ravel().astype(bool)
     p = probs.ravel()[mask]
@@ -274,14 +271,13 @@ def evaluate(
     manifest = DatasetManifest.read(manifest_path)
     root = manifest_path.parent
 
-    # 1. Calibrate NDVI baseline on the val split (the deep model also never saw val).
-    log.info("Calibrating NDVI baseline threshold on val split…")
+    # Calibrate NDVI baseline on the val split (the deep model also never saw val).
+    log.info("Calibrating NDVI baseline threshold on val split.")
     val_b, val_a, val_l, val_w = _baseline_predictions_for_split(manifest, "val", root)
     calib = calibrate_threshold(val_b, val_a, val_l, valid_mask=val_w)
     log.info("Picked NDVI threshold = %.3f (val F1 = %.3f).", calib.best_threshold, calib.best_f1)
 
-    # 2. Run the trained model on test.
-    log.info("Running Siamese U-Net on test split…")
+    log.info("Running Siamese U-Net on test split.")
     model = load_model(checkpoint_path, dev)
     test_ds = ChangeDetectionDataset(manifest, "test", root=root)
     test_loader = DataLoader(test_ds, batch_size=batch_size, shuffle=False)
@@ -289,8 +285,7 @@ def evaluate(
         model, test_loader, dev
     )
 
-    # 3. NDVI baseline on the same test pixels using the calibrated threshold.
-    log.info("Applying NDVI baseline to test split…")
+    log.info("Applying NDVI baseline to test split.")
     test_b, test_a, test_l, test_w = _baseline_predictions_for_split(manifest, "test", root)
     assert np.array_equal(test_l, targets), "test-split label ordering disagrees between loaders"
     baseline_preds = np.stack(
@@ -300,17 +295,14 @@ def evaluate(
         ]
     )
 
-    # 4. Compute metrics.
     deep_metrics = compute_segmentation_metrics(deep_preds, targets, weights)
     baseline_metrics = compute_segmentation_metrics(baseline_preds, targets, weights)
     log.info("Deep:     %s", deep_metrics.as_dict())
     log.info("Baseline: %s", baseline_metrics.as_dict())
 
-    # 5. Calibration + failure breakdown.
     calibration = _calibration_curve(deep_probs, targets, weights)
     failure = _failure_breakdown(deep_preds, baseline_preds, targets, weights, cloud_frac_per_tile)
 
-    # 6. Plots.
     assets_dir.mkdir(parents=True, exist_ok=True)
     calib_fig = assets_dir / "calibration.png"
     metrics_fig = assets_dir / "metrics_comparison.png"

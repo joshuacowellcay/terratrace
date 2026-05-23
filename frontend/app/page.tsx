@@ -5,13 +5,13 @@ import { useState } from 'react';
 import PredictionPanel from '@/components/PredictionPanel';
 import type { BBox, PredictResponse } from '@/lib/types';
 
-// MapLibre needs window — load the map client-side only so the initial server render doesn't
-// touch any browser globals.
+// MapLibre needs `window`, so load the map client-side only and keep the initial server
+// render free of browser globals.
 const Map = dynamic(() => import('@/components/Map'), {
   ssr: false,
   loading: () => (
     <div className="flex h-full items-center justify-center bg-canopy-900 text-canopy-100">
-      loading map…
+      loading map...
     </div>
   ),
 });

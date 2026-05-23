@@ -1,9 +1,9 @@
 """End-to-end smoke test for the evaluator.
 
-This test trains a tiny model for a single epoch on a tiny synthetic dataset, then runs the
-full evaluator and checks that the report is structurally sound and the headline numbers fall
-in a plausible range. It's not a regression test on absolute metrics — those move with seed
-and config — it's a contract test on the evaluator's outputs.
+Trains a tiny model for a single epoch on a tiny synthetic dataset, then runs the full
+evaluator and checks that the report is structurally sound and the headline numbers fall in
+a plausible range. Not a regression test on absolute metrics (those move with seed and
+config); a contract test on the evaluator's outputs.
 """
 
 from __future__ import annotations

@@ -1,11 +1,11 @@
 """Training loop for the Siamese U-Net change detector.
 
 Single entry point: :func:`train`. Deterministic per-seed (numpy + torch + Python random),
-logs every run to a local MLflow store at ``./mlruns``, and saves the best-val-IoU checkpoint
-to ``{checkpoint_dir}/{checkpoint_name}``. Always portable: defaults to ``device='auto'``
-which picks Apple MPS or CUDA when available and falls back to CPU. The CPU path is the
-contract — every default in :mod:`terratrace.training.config` is chosen so the fast run
-completes on a single laptop core in well under thirty minutes.
+logs every run to a local MLflow store at ``./mlruns``, and saves the best-val-IoU
+checkpoint to ``{checkpoint_dir}/{checkpoint_name}``. ``device='auto'`` picks Apple MPS or
+CUDA when available and falls back to CPU. The CPU path is the contract; defaults in
+:mod:`terratrace.training.config` are chosen so the fast run completes on a single laptop
+core in well under thirty minutes.
 """
 
 from __future__ import annotations
@@ -53,7 +53,6 @@ def select_device(preference: str) -> torch.device:
             log.warning("MPS requested but not available; falling back to CPU.")
             return torch.device("cpu")
         return torch.device("mps")
-    # auto
     if torch.cuda.is_available():
         return torch.device("cuda")
     if torch.backends.mps.is_available():
@@ -62,7 +61,7 @@ def select_device(preference: str) -> torch.device:
 
 
 def set_global_seeds(seed: int) -> None:
-    """Make this run reproducible (best-effort — perfect determinism on GPU isn't free)."""
+    """Make this run reproducible. Best-effort; perfect determinism on GPU isn't free."""
     random.seed(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)

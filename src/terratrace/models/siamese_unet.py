@@ -1,26 +1,18 @@
 """Siamese U-Net change-detection model.
 
-Two encoder branches **share weights** (the same ``nn.Module`` is called twice), so the model
-sees the before and after images symmetrically — swapping the inputs would invert the sign of
+Two encoder branches share weights (the same ``nn.Module`` is called twice), so the model
+sees the before and after images symmetrically. Swapping the inputs would invert the sign of
 the predicted change, never silently lose information. At each spatial scale the encoder
 features are concatenated channel-wise and passed to the decoder as the skip connection. The
 decoder upsamples back to input resolution and emits a per-pixel logit.
 
-Why Siamese over an early-fusion U-Net (input = stacked 2C-channel pair)?
-    * Symmetry: same backbone evaluates each image, so any bias the encoder learns applies
-      identically to both timestamps.
-    * Reusability: the same encoder can be plugged into a triplet-loss representation
-      pre-training in a future iteration.
-    * Cleaner separation: per-image embeddings are explicit and can be probed.
+Why concat the features instead of subtracting them? Subtraction discards the raw appearance
+information and can mask cases where the model needs context (e.g. "this was forest, now
+it's cloud, don't call this loss"). Concat keeps both.
 
-Why not subtract the features instead of concatenate?
-    * Subtraction discards the raw appearance information and can mask cases where the model
-      needs context (e.g. "this was forest, now it's cloud — don't call this loss"). Concat
-      keeps both — the decoder learns whatever combination is most useful.
-
-The encoder is a small VGG-ish stack of double-conv blocks, max-pooled between scales. No
-external backbone (no ImageNet weights) so the model is self-contained and works identically
-on the synthetic data path and the real Sentinel-2 path.
+Why no ImageNet backbone? Sentinel-2 imagery is 4 bands not 3, the channels are reflectance
+not photographs, and the synthetic path needs to work without external weights. A small
+VGG-ish stack of double-conv blocks max-pooled between scales is enough at 128 px.
 """
 
 from __future__ import annotations
@@ -38,7 +30,7 @@ class SiameseUNetConfig:
 
     in_channels: int = 4
     base_channels: int = 32  # raised in configs/full.yaml for GPU training
-    depth: int = 4  # number of down/up stages (4 → 16x downsampling, fine for 128px tiles)
+    depth: int = 4  # number of down/up stages (4 gives 16x downsampling, fine for 128px tiles)
 
     def __post_init__(self) -> None:
         if self.depth < 2 or self.depth > 6:
@@ -48,7 +40,6 @@ class SiameseUNetConfig:
 
 
 def _conv_block(in_ch: int, out_ch: int) -> nn.Sequential:
-    """Double 3x3 conv + BN + ReLU, the U-Net workhorse."""
     return nn.Sequential(
         nn.Conv2d(in_ch, out_ch, kernel_size=3, padding=1, bias=False),
         nn.BatchNorm2d(out_ch),
@@ -80,12 +71,10 @@ class SharedEncoder(nn.Module):
             feats.append(x)
             if i < len(self.stages) - 1:
                 x = self.pool(x)
-        return feats  # len == depth, finest first
+        return feats
 
 
 class DecoderBlock(nn.Module):
-    """Upsample → align to skip → concat → double conv."""
-
     def __init__(self, in_ch: int, skip_ch: int, out_ch: int) -> None:
         super().__init__()
         self.conv = _conv_block(in_ch + skip_ch, out_ch)
@@ -109,14 +98,11 @@ class SiameseUNet(nn.Module):
             depth=c.depth,
         )
         encoder_channels = [c.base_channels * (2**i) for i in range(c.depth)]
-        # Bottleneck takes the concatenation of (before, after) at the deepest pool level.
         bottleneck_in = 2 * encoder_channels[-1]
         bottleneck_out = bottleneck_in
         self.pool = nn.MaxPool2d(kernel_size=2, stride=2)
         self.bottleneck = _conv_block(bottleneck_in, bottleneck_out)
 
-        # Decoder mirrors the encoder; each skip is the concatenation of the matching
-        # (before, after) feature maps from the shared encoder.
         decoder_blocks: list[DecoderBlock] = []
         prev_ch = bottleneck_out
         for i in reversed(range(c.depth)):

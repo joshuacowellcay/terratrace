@@ -1,9 +1,9 @@
-"""The :class:`Tile` payload — a single training sample, source-agnostic.
+"""The :class:`Tile` payload, a single training sample, source-agnostic.
 
-A Tile is the unit emitted by both the synthetic generator and the real-data STAC fetcher. The
-pipeline orchestrator writes Tiles to disk in a uniform on-disk layout and records each one in
-the manifest. Downstream code never needs to know whether a tile came from satellite imagery
-or the procedural generator.
+A Tile is the unit emitted by both the synthetic generator and the real-data STAC fetcher.
+The pipeline orchestrator writes Tiles to disk in a uniform layout and records each one in
+the manifest. Downstream code never needs to know whether a tile came from satellite
+imagery or the procedural generator.
 """
 
 from __future__ import annotations

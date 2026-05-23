@@ -53,7 +53,7 @@ def _save_tile_to_disk(
 
 
 def _build_tiles(config: PipelineConfig) -> tuple[list[Tile], Source]:
-    """Decide source, produce tiles. Returns (tiles, source) where source ∈ {'real','synthetic'}."""
+    """Decide source, produce tiles. Returns (tiles, source) with source in {'real','synthetic'}."""
     if config.fetch_mode == "synthetic":
         log.info("fetch_mode=synthetic: generating procedural dataset.")
         return _synthesise(config), "synthetic"
@@ -68,7 +68,6 @@ def _build_tiles(config: PipelineConfig) -> tuple[list[Tile], Source]:
             )
         return tiles, "real"
 
-    # auto: try real, fall back on any failure.
     log.info("fetch_mode=auto: trying real-data path first.")
     tiles = fetch_real_tiles(config.real)
     if tiles is not None and len(tiles) >= 16:
@@ -117,8 +116,8 @@ def build_dataset(config: PipelineConfig) -> DatasetManifest:
         for loc in items:
             tile_to_split[loc.tile_id] = split_name
 
-    # Determine bands list. Synthetic uses the canonical (R, G, B, NIR) order. Real path uses
-    # the configured `bands` list, which already corresponds to the band stack.
+    # Synthetic uses the canonical (R, G, B, NIR) order; real uses the configured bands
+    # list, which already matches the order tiles were stacked in.
     bands = list(BAND_NAMES) if source == "synthetic" else list(config.real.bands)
     tile_size = config.synthetic.tile_size if source == "synthetic" else config.real.tile_size
 
@@ -126,9 +125,7 @@ def build_dataset(config: PipelineConfig) -> DatasetManifest:
     for tile in tiles:
         split = tile_to_split[tile.tile_id]
         before_p, after_p, label_p, cb_p, ca_p = _save_tile_to_disk(tile, split, output_dir)
-        # Paths in the manifest are relative to the manifest's own directory, so a manifest
-        # at `data/processed/manifest.json` references `train/r000_c000/before.npz` etc. The
-        # Dataset class joins them with the manifest's parent path.
+        # Manifest paths are relative to the manifest directory, e.g. ``train/r000_c000/before.npz``.
         entries.append(
             TileEntry(
                 tile_id=tile.tile_id,
@@ -202,9 +199,8 @@ def _materialise_sample(
         shutil.rmtree(sample_dir)
     sample_dir.mkdir(parents=True, exist_ok=True)
 
-    # Pick the first N tiles from the test split (sorted by tile_id for determinism). This
-    # gives the sample data a clean spatial origin and never leaks into the test split for
-    # any future evaluation that re-uses these tiles.
+    # First N test-split tiles, sorted by tile_id for determinism. Drawing from test means
+    # any future evaluation that loads these committed samples can't leak training data.
     test_tiles = sorted(manifest.by_split("test"), key=lambda t: t.tile_id)
     chosen = test_tiles[: config.sample_tiles]
     if not chosen:

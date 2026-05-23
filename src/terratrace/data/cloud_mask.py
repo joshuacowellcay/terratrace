@@ -1,8 +1,8 @@
 """Cloud-mask utilities.
 
 For Sentinel-2 L2A we read the Scene Classification Layer (SCL) and treat the classes that
-represent cloud, cirrus, or cloud shadow as invalid. For the synthetic path, the generator
-already emits a boolean cloud mask — we just convert it to the same dtype.
+represent cloud, cirrus, or cloud shadow as invalid. The synthetic path already emits a
+boolean cloud mask, which we just convert to the same dtype.
 
 SCL classes (Sentinel-2 L2A documentation):
     0  no data
@@ -19,7 +19,7 @@ SCL classes (Sentinel-2 L2A documentation):
     11 snow / ice
 
 We treat 0, 1, 3, 8, 9, 10 as invalid by default. ``11`` (snow) is kept; the Amazon AOI
-never sees it but in other regions you might want to mask it too.
+never sees it but other regions might need to mask it too.
 """
 
 from __future__ import annotations

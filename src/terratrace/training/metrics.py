@@ -1,7 +1,7 @@
 """Segmentation metrics for the forest-loss class.
 
-We headline IoU/precision/recall/F1 — *not* pixel accuracy. With ~5% positive pixels, a "predict
-0 everywhere" baseline already scores 95% accuracy and 0 IoU, so accuracy alone is misleading.
+We headline IoU/precision/recall/F1, not pixel accuracy. With ~5% positive pixels, a
+"predict 0 everywhere" baseline already scores 95% accuracy and 0 IoU.
 """
 
 from __future__ import annotations
@@ -18,7 +18,7 @@ class SegMetrics:
     precision: float
     recall: float
     f1: float
-    accuracy: float  # included only for completeness; never headline this alone.
+    accuracy: float  # never headline this alone given the class balance
 
     def as_dict(self) -> dict[str, float]:
         return {

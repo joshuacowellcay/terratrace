@@ -15,9 +15,9 @@ import torch
 
 from ..models.siamese_unet import SiameseUNet, SiameseUNetConfig
 
-# Sentinel-2 L2A bands are at 10 m ground resolution by default. The synthetic generator's
-# tiles match — one pixel ≈ 100 m². Updated automatically if the manifest records a different
-# pixel size in a future revision.
+# Sentinel-2 L2A bands are at 10 m ground resolution by default; the synthetic generator's
+# tiles match, so one pixel is ~100 m^2. A future revision should derive this from the
+# manifest if a different pixel size is recorded there.
 DEFAULT_PIXEL_AREA_M2 = 100.0
 
 
@@ -27,12 +27,12 @@ class TilePrediction:
     mask: np.ndarray  # (H, W) uint8, thresholded at the requested cutoff
     before: np.ndarray  # (H, W, C) float32
     after: np.ndarray  # (H, W, C) float32
-    cloud_mask: np.ndarray  # (H, W) uint8 — 1 = invalid in either timestamp
+    cloud_mask: np.ndarray  # (H, W) uint8, 1 = invalid in either timestamp
     pixel_area_m2: float
 
     @property
     def hectares_lost(self) -> float:
-        """Convert predicted loss pixels to hectares (1 ha = 10 000 m²)."""
+        """Convert predicted loss pixels to hectares (1 ha = 10 000 m^2)."""
         return float(self.mask.sum() * self.pixel_area_m2 / 10_000.0)
 
     @property
@@ -90,7 +90,7 @@ def predict_tile(
         logits = model(b.float(), a.float()).squeeze(0).squeeze(0)
         prob = torch.sigmoid(logits).cpu().numpy()
 
-    # Zero out confidence on cloud-corrupted pixels — we don't trust the model there.
+    # Zero out confidence on cloud-corrupted pixels; we don't trust the model there.
     prob_masked = prob.copy()
     prob_masked[cloud.astype(bool)] = 0.0
     mask = (prob_masked > threshold).astype(np.uint8)

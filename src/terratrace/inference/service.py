@@ -1,23 +1,23 @@
 """FastAPI service exposing the change-detection model.
 
 Endpoints:
-    GET  /health                    — readiness probe, reports device + sample-tile count.
-    POST /predict                   — bbox + before/after dates → hectares + confidence + id.
-    GET  /tile/{prediction_id}/before.png      — original 'before' image, true-colour stretched.
-    GET  /tile/{prediction_id}/after.png       — original 'after' image, true-colour stretched.
-    GET  /tile/{prediction_id}/mask.png        — predicted forest-loss mask (red overlay).
-    GET  /tile/{prediction_id}/confidence.png  — heatmap of per-pixel probability.
+    GET  /health                                Readiness probe; reports device + sample count.
+    POST /predict                               bbox + before/after dates returns hectares + id.
+    GET  /tile/{prediction_id}/before.png       Original 'before' image, true-colour stretched.
+    GET  /tile/{prediction_id}/after.png        Original 'after' image, true-colour stretched.
+    GET  /tile/{prediction_id}/mask.png         Predicted forest-loss mask (red overlay).
+    GET  /tile/{prediction_id}/confidence.png   Per-pixel probability heatmap.
 
 The service runs in two modes:
-    * **real**: tries to fetch Sentinel-2 + Hansen via the same code path as the data
+    * ``real``: tries to fetch Sentinel-2 + Hansen via the same code path as the data
       pipeline. If imagery is too cloudy or unavailable it returns 422 with a clear message
       rather than silently giving back a wrong answer.
-    * **sample**: when ``TERRATRACE_FORCE_SYNTHETIC=1`` or there is no committed checkpoint,
-      the service serves predictions over the tiles in ``data/sample/``. The bbox+dates of
-      the request deterministically pick a sample tile, so the same request always returns
+    * ``sample``: when ``TERRATRACE_FORCE_SYNTHETIC=1`` or there is no committed checkpoint,
+      the service serves predictions over the tiles in ``data/sample/``. The request's
+      bbox+dates deterministically pick a sample tile, so the same request always returns
       the same prediction.
 
-All predictions are written into a file-backed tile cache; the per-tile image endpoints serve
+All predictions are written to a file-backed tile cache; the per-tile image endpoints serve
 the PNGs from there. The cache key is a hash of the request body, so repeat requests are O(1).
 """
 
@@ -48,7 +48,7 @@ ROOT = Path(__file__).resolve().parents[3]
 DEFAULT_CHECKPOINT = ROOT / "checkpoints" / "fast.pt"
 DEFAULT_SAMPLE_MANIFEST = ROOT / "data" / "sample" / "manifest.json"
 DEFAULT_CACHE_DIR = ROOT / ".cache" / "tiles"
-MAX_CLOUD_FRACTION = 0.85  # above this we refuse to give a hectares estimate
+MAX_CLOUD_FRACTION = 0.85  # above this we refuse to return a hectares estimate
 
 
 def _load_npz(path: Path) -> np.ndarray:
@@ -66,7 +66,7 @@ def _model_and_meta() -> tuple[object, dict | None]:
     """Load the model lazily. Returns (model, ckpt_meta) or (None, None) if no checkpoint."""
     ckpt_path = Path(os.environ.get("TERRATRACE_CHECKPOINT", str(DEFAULT_CHECKPOINT)))
     if not ckpt_path.is_file():
-        log.warning("No checkpoint at %s — service can only serve health probes.", ckpt_path)
+        log.warning("No checkpoint at %s; service can only serve health probes.", ckpt_path)
         return None, None
     model, meta = load_checkpoint(ckpt_path, _device())
     log.info("Loaded checkpoint from %s.", ckpt_path)
@@ -99,7 +99,7 @@ def _force_sample() -> bool:
 def _to_true_color_png(img: np.ndarray) -> bytes:
     """Render the first three bands as an RGB PNG, with a per-tile percentile stretch.
 
-    Sentinel-2 reflectance is roughly in [0, 0.3]; using (2nd, 98th) percentile per channel
+    Sentinel-2 reflectance is roughly in [0, 0.3]; a (2nd, 98th) percentile per channel
     gives a reasonable display stretch on both real and synthetic data.
     """
     rgb = img[..., :3].astype(np.float32)
@@ -131,7 +131,7 @@ def _mask_overlay_png(mask: np.ndarray) -> bytes:
 
 
 def _confidence_png(prob: np.ndarray) -> bytes:
-    """Render the per-pixel probability as a yellow→red heatmap RGBA PNG."""
+    """Render the per-pixel probability as a yellow-to-red heatmap RGBA PNG."""
     h, w = prob.shape
     p = np.clip(prob, 0.0, 1.0)
     rgba = np.zeros((h, w, 4), dtype=np.uint8)
@@ -207,7 +207,7 @@ def _build_app() -> FastAPI:
         version="0.1.0",
     )
 
-    # CORS — the frontend at localhost:3000 needs to call this in dev.
+    # CORS: open in dev so the frontend at localhost:3000 can call this directly.
     from fastapi.middleware.cors import CORSMiddleware
 
     app.add_middleware(
@@ -231,14 +231,14 @@ def _build_app() -> FastAPI:
     def predict(req: PredictRequest) -> PredictResponse:
         model, _meta = _model_and_meta()
         if model is None:
-            raise HTTPException(503, "No model checkpoint loaded — service not ready.")
+            raise HTTPException(503, "No model checkpoint loaded; service not ready.")
 
         source: str
         notes = ""
         if _force_sample():
             before, after, cb, ca, _tile_id = _sample_tile_for_request(req)
             source = "sample"
-            notes = "TERRATRACE_FORCE_SYNTHETIC is set — returning a sample-tile prediction."
+            notes = "TERRATRACE_FORCE_SYNTHETIC is set; returning a sample-tile prediction."
         else:
             real = _try_real_tiles(req)
             if real is not None:
@@ -305,7 +305,7 @@ def _build_app() -> FastAPI:
         entry = _cache().entry(prediction_id)
         png_path = entry.png_path(kind)
         if not png_path.is_file():
-            raise HTTPException(404, "prediction not found — has /predict been called?")
+            raise HTTPException(404, "prediction not found; has /predict been called?")
         return Response(content=png_path.read_bytes(), media_type="image/png")
 
     return app

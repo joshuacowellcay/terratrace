@@ -1,8 +1,8 @@
-# Full training config — wider model, more epochs, intended for a GPU run.
+# Full training config: wider model, more epochs, intended for a GPU run.
 #
 # Use this when you have CUDA or want to push quality further. On a single modern GPU the
 # whole run takes a few hours and lands meaningfully above fast.yaml on IoU. On CPU it is
-# *not* recommended (would take many hours).
+# not recommended (would take many hours).
 
 name: full
 manifest_path: data/processed/manifest.json

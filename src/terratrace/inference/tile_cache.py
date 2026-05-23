@@ -33,7 +33,7 @@ def fingerprint(request: PredictRequest) -> str:
 
 
 class TileCache:
-    """Tiny on-disk cache. Not eviction-aware — operators clear the directory periodically."""
+    """Tiny on-disk cache. Not eviction-aware; operators clear the directory periodically."""
 
     def __init__(self, root: Path) -> None:
         self.root = root

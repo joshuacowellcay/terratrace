@@ -52,5 +52,5 @@ def test_extract_tile_rejects_bad_ndim() -> None:
 
 def test_coverage_fraction() -> None:
     assert tile_coverage_fraction(256, 256, 128) == 1.0
-    # 300/128 = 2 tiles wide → 256/300 ≈ 0.85 per side → 0.728 area
+    # 300/128 = 2 tiles wide; 256/300 is ~0.85 per side, so ~0.728 area.
     assert 0.7 < tile_coverage_fraction(300, 300, 128) < 0.75

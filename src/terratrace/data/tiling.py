@@ -1,8 +1,8 @@
 """Tile a 2D raster (or stack of rasters) into fixed-size patches.
 
 Used by the real-data path when slicing Sentinel-2 mosaics. The synthetic path has its own
-``tile_world`` because it generates the world and the tiles together; this module operates on
-arrays that already exist.
+``tile_world`` because it generates the world and the tiles together; this module operates
+on arrays that already exist.
 """
 
 from __future__ import annotations

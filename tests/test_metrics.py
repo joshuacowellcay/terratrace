@@ -30,7 +30,7 @@ def test_completely_wrong_prediction_scores_zero_iou() -> None:
 def test_weights_exclude_pixels() -> None:
     target = np.array([[0, 1], [1, 0]], dtype=np.uint8)
     pred = np.array([[0, 1], [0, 0]], dtype=np.uint8)
-    # Without mask: pred has 1 TP, 1 FN, 0 FP → IoU = 1/2 = 0.5
+    # Without mask: pred has 1 TP, 1 FN, 0 FP, so IoU = 1/2 = 0.5.
     metrics_full = compute_segmentation_metrics(pred, target)
     assert metrics_full.iou == 0.5
     # Mask out the FN; only the matching TP remains and accuracy on the kept pixels is 100%.

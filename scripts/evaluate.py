@@ -76,8 +76,8 @@ def main(argv: list[str] | None = None) -> int:
         f"{json.dumps(report.baseline, indent=2)}"
     )
     print(f"\nFailure breakdown:  {json.dumps(report.failure.__dict__, indent=2)}")
-    print(f"\nMetrics → {report.metrics_path}")
-    print(f"Figures → {', '.join(report.figures.values())}")
+    print(f"\nMetrics: {report.metrics_path}")
+    print(f"Figures: {', '.join(report.figures.values())}")
     return 0
 
 

@@ -13,7 +13,7 @@ from terratrace.training.losses import (
 
 
 def test_dice_zero_when_prediction_matches_target_perfectly() -> None:
-    # Construct logits so sigmoid(logits) ≈ target.
+    # Construct logits so sigmoid(logits) is close to target.
     target = torch.tensor([[[0.0, 1.0], [1.0, 0.0]]])
     logits = torch.where(target > 0.5, torch.tensor(10.0), torch.tensor(-10.0))
     loss = soft_dice_loss(logits, target)

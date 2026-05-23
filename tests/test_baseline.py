@@ -19,7 +19,7 @@ def test_ndvi_shape_and_range() -> None:
     out = ndvi(img)
     assert out.shape == (16, 16)
     assert out.dtype == np.float32
-    # NDVI is bounded in [-1, 1] but with our +EPS divisor it can asymptote close to ±1.
+    # NDVI is bounded in [-1, 1]; with our +EPS divisor it can asymptote close to +/-1.
     assert (out >= -1.0).all() and (out <= 1.0).all()
 
 
@@ -34,8 +34,8 @@ def test_predict_respects_valid_mask() -> None:
     h, w = 4, 4
     before = np.zeros((h, w, 4), dtype=np.float32)
     after = np.zeros((h, w, 4), dtype=np.float32)
-    before[..., 3] = 0.8  # high NIR → high NDVI before
-    after[..., 0] = 0.4  # bumped red, low NIR → low NDVI after → large positive diff
+    before[..., 3] = 0.8  # high NIR -> high NDVI before
+    after[..., 0] = 0.4  # bumped red, low NIR -> low NDVI after -> large positive diff
 
     pred_all_valid = predict(before, after, threshold=0.1)
     assert pred_all_valid.sum() > 0
@@ -58,11 +58,11 @@ def test_calibrate_threshold_picks_a_better_score_than_extremes_on_synthetic_dat
     # Picked threshold lies in the sensible range we sweep.
     assert 0.05 <= result.best_threshold <= 0.6
 
-    # The best threshold's F1 should beat both extremes of the sweep — otherwise the
+    # The best threshold's F1 should beat both extremes of the sweep; otherwise the
     # calibration isn't doing anything useful.
     sweep = dict(result.sweep)
     assert result.best_f1 > sweep[min(sweep)]
     assert result.best_f1 > sweep[max(sweep)]
-    # And it should be meaningfully positive on a generator that puts ~5-20% of pixels in
-    # the loss class with high NIR drop.
+    # On a generator that puts ~5-20% of pixels in the loss class with a high NIR drop, F1
+    # should also be meaningfully positive.
     assert result.best_f1 > 0.3, f"baseline F1 too low: {result.best_f1:.3f}"

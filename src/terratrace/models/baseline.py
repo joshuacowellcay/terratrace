@@ -1,19 +1,17 @@
-"""NDVI-difference baseline — the non-ML benchmark the deep model is measured against.
+"""NDVI-difference baseline. The non-ML benchmark the deep model is measured against.
 
 NDVI ((NIR - Red) / (NIR + Red)) is high for healthy vegetation and low for bare soil or
 water. If a pixel was vegetation in ``before`` (NDVI_before high) and isn't in ``after``
-(NDVI_after low), it's a deforestation candidate. The detector reduces this to a single
-scalar — the NDVI drop — and thresholds it:
+(NDVI_after low), it's a deforestation candidate. The detector thresholds the NDVI drop:
 
     pred = (NDVI_before - NDVI_after) > threshold
 
-The threshold is **calibrated on the validation set** (we sweep candidate values and pick the
-one with highest F1 for the forest-loss class). This gives the baseline its fairest possible
-shot at the problem: any improvement the deep model shows over it then represents the value
-of learning context the threshold can't see.
+The threshold is calibrated on the validation set (we sweep candidate values and pick the
+one with highest F1 for the forest-loss class). Any improvement the deep model shows over
+this baseline then represents the value of learning context the threshold can't see.
 
-Index convention: bands are ordered (red, green, blue, nir). Band indices are passed
-explicitly to keep this module reusable if a different stack is ever swapped in.
+Band indices are passed explicitly so this module stays reusable if a different stack is
+ever swapped in.
 """
 
 from __future__ import annotations
@@ -69,7 +67,7 @@ def predict(
 class ThresholdSearchResult:
     best_threshold: float
     best_f1: float
-    sweep: list[tuple[float, float]]  # [(threshold, f1), ...]
+    sweep: list[tuple[float, float]]
 
 
 def calibrate_threshold(
@@ -84,14 +82,12 @@ def calibrate_threshold(
 
     ``before``, ``after``: stacked across all tiles in the calibration split, shape
     (N, H, W, C). ``label``: (N, H, W) uint8 ground truth. ``valid_mask``: same shape as
-    label, 1 where the pixel should count.
-
-    Returns the best threshold, its F1, and the full sweep for plotting.
+    label, 1 where the pixel should count. Returns the best threshold, its F1, and the
+    full sweep for plotting.
     """
     if candidates is None:
         candidates = np.linspace(0.05, 0.6, 23, dtype=np.float32)
 
-    # Vectorise: stack into a single big batch and compute once per threshold.
     if before.shape != after.shape or before.shape[:-1] != label.shape:
         raise ValueError(
             f"shape mismatch: before={before.shape}, after={after.shape}, label={label.shape}"
@@ -102,7 +98,6 @@ def calibrate_threshold(
         valid_mask.reshape(-1).astype(bool) if valid_mask is not None else np.ones_like(flat_label)
     )
 
-    # Compute NDVI difference once across the full batch (memory-light: NDVI is single-band).
     ndvi_before = ndvi(before.reshape(n * h, w, c))
     ndvi_after = ndvi(after.reshape(n * h, w, c))
     diff = (ndvi_before - ndvi_after).reshape(-1)

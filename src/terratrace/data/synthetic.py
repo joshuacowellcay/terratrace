@@ -1,17 +1,17 @@
 """Procedural synthetic data generator.
 
-Produces before/after multi-band image pairs with a known forest-loss ground-truth mask. The
-goal is not photorealism but to give every downstream component (loss, training loop, baseline,
-evaluation, inference) the same data shape and statistical structure as the real Sentinel-2 path
-so that nothing in the pipeline secretly depends on real data being available.
+Produces before/after multi-band image pairs with a known forest-loss ground-truth mask.
+The goal is not photorealism but to give every downstream component (loss, training loop,
+baseline, evaluation, inference) the same data shape and statistical structure as the real
+Sentinel-2 path, so nothing in the pipeline secretly depends on real data being available.
 
 Land-cover classes:
     0 = water           (low NIR, low overall brightness)
-    1 = forest          (high NIR, low red — high NDVI)
-    2 = bare / cleared  (moderate NIR, moderate red — low NDVI)
+    1 = forest          (high NIR, low red, high NDVI)
+    2 = bare / cleared  (moderate NIR, moderate red, low NDVI)
 
-The "after" image keeps the class-2 areas, removes forest in randomly-shaped polygons (which
-become bare — this is the deforestation signal), applies a small global seasonal brightness
+The "after" image keeps the class-2 areas, removes forest in randomly shaped polygons
+(which become bare, the deforestation signal), applies a small global seasonal brightness
 shift, and re-rolls cloud cover. The forest-loss label is exactly
 ``(forest_before & ~forest_after)``.
 
@@ -33,7 +33,7 @@ BAND_NAMES: tuple[str, ...] = ("red", "green", "blue", "nir")
 N_BANDS = len(BAND_NAMES)
 
 # Per-class mean spectra. Values picked so that NDVI separates forest from non-forest, but
-# bare and water still have non-trivial overlap — the task is meant to reward learning
+# bare and water still have non-trivial overlap; the task is meant to reward learning
 # spatial context, not just thresholding a single band.
 _CLASS_MEANS: dict[int, np.ndarray] = {
     0: np.array([0.04, 0.06, 0.10, 0.02], dtype=np.float32),  # water
@@ -97,7 +97,7 @@ def _multioctave(
 def _classify(elevation: np.ndarray, moisture: np.ndarray) -> np.ndarray:
     """Derive a discrete class map from two noise fields.
 
-    Low elevation + high moisture → water. The remaining land splits into forest where the
+    Low elevation + high moisture gives water. The remaining land splits into forest where
     "forest potential" (a mix of moisture and mid-elevation) is high, and bare otherwise.
     """
     classes = np.full(elevation.shape, fill_value=2, dtype=np.uint8)  # default: bare
@@ -125,22 +125,20 @@ def _render(
         sel = classes == cls_idx
         if not sel.any():
             continue
-        # Broadcast mean across selected pixels; we add per-pixel noise below.
         img[sel] = mean
 
-    # Per-pixel Gaussian noise — kept small so classes remain separable.
+    # Per-pixel Gaussian noise, kept small so classes remain separable.
     img += rng.standard_normal(img.shape).astype(np.float32) * per_pixel_noise
 
-    # Global seasonal brightness shift (multiplicative on visible bands, small effect on NIR).
+    # Seasonal brightness shift, multiplicative on visible bands and small on NIR.
     if brightness_shift != 0.0:
         img[..., :3] *= 1.0 + brightness_shift
         img[..., 3] *= 1.0 + brightness_shift * 0.3
 
-    # Apply cloud shadow first (it sits under clouds — clouds will overwrite where they overlap).
+    # Apply shadow first (clouds overwrite shadow where the two overlap).
     if shadow_mask.any():
         img[shadow_mask] *= _SHADOW_DARKENING
 
-    # Apply cloud cover: overwrite with cloud spectrum where mask is set.
     if cloud_mask.any():
         img[cloud_mask] = (
             _CLOUD_SPECTRUM
@@ -153,11 +151,11 @@ def _render(
 def _generate_clouds(
     rng: np.random.Generator, shape: tuple[int, int], fraction: float
 ) -> tuple[np.ndarray, np.ndarray]:
-    """Return (cloud_mask, shadow_mask) — both uint8 of the same shape.
+    """Return (cloud_mask, shadow_mask) as uint8 arrays of the same shape.
 
     Clouds are blob-shaped (high quantile of a smoothed noise field). Shadows are offset
-    copies of the clouds, shifted by a small fixed displacement to mimic the geometry of
-    sun-angle projection. Fraction is the target cloudy fraction; it's approximate.
+    copies of the clouds, shifted by a small fixed displacement to mimic sun-angle
+    projection. ``fraction`` is the target cloudy fraction (approximate).
     """
     if fraction <= 0.0:
         empty = np.zeros(shape, dtype=bool)
@@ -167,12 +165,12 @@ def _generate_clouds(
     threshold = float(np.quantile(cloud_field, 1.0 - fraction))
     cloud_mask = cloud_field > threshold
 
-    # Shift the cloud mask by ~6% of the image diagonal to make shadows.
+    # Shadows are the cloud mask shifted by ~6% of the image diagonal.
     h, w = shape
     dy, dx = max(1, h // 18), max(1, w // 18)
     shadow_mask = np.zeros(shape, dtype=bool)
     shadow_mask[dy:, dx:] = cloud_mask[:-dy, :-dx]
-    # Shadows that fall on top of their own cloud aren't visible — strip them.
+    # Strip shadow pixels that fall on top of their own cloud.
     shadow_mask &= ~cloud_mask
 
     return cloud_mask.astype(np.uint8), shadow_mask.astype(np.uint8)
@@ -186,10 +184,10 @@ def _random_deforestation(
     min_radius_frac: float = 0.02,
     max_radius_frac: float = 0.08,
 ) -> np.ndarray:
-    """Build a boolean mask of "deforested" pixels — random ellipses constrained to forest.
+    """Build a boolean mask of "deforested" pixels: random ellipses constrained to forest.
 
-    Returned mask has the same shape as ``forest_mask``. Outside-forest pixels are never set,
-    because you cannot deforest non-forest.
+    Returned mask has the same shape as ``forest_mask``. Outside-forest pixels are never
+    set, because you cannot deforest non-forest.
     """
     h, w = forest_mask.shape
     diag = float(np.hypot(h, w))
@@ -224,23 +222,19 @@ def generate_world(config: SyntheticConfig) -> SyntheticWorld:
     h = config.grid_rows * config.tile_size
     w = config.grid_cols * config.tile_size
 
-    # Two independent noise fields drive land-cover classification.
     elevation = _multioctave(rng, (h, w), octaves=(64, 32, 16, 8))
     moisture = _multioctave(rng, (h, w), octaves=(48, 24, 12, 6))
 
     classes_before = _classify(elevation, moisture)
 
-    # Deforestation: shrink the forest in random patches.
     forest_before_mask = classes_before == 1
     deforested = _random_deforestation(rng, forest_before_mask)
     classes_after = classes_before.copy()
-    classes_after[deforested] = 2  # forest → bare
+    classes_after[deforested] = 2  # forest -> bare
 
-    # Independent cloud cover for before and after.
     cloud_before, shadow_before = _generate_clouds(rng, (h, w), config.cloud_fraction)
     cloud_after, shadow_after = _generate_clouds(rng, (h, w), config.cloud_fraction)
 
-    # Seasonal brightness shift: small, symmetric. Real S2 reflectance also varies seasonally.
     season_shift = float(rng.uniform(-config.seasonal_shift, config.seasonal_shift))
 
     before = _render(
@@ -257,7 +251,6 @@ def generate_world(config: SyntheticConfig) -> SyntheticWorld:
         brightness_shift=season_shift,
     )
 
-    # Forest-loss label: forest in before AND not forest in after.
     label = (forest_before_mask & (classes_after != 1)).astype(np.uint8)
 
     return SyntheticWorld(
