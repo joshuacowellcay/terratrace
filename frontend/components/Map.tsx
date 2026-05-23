@@ -12,12 +12,37 @@ type Props = {
   overlay: 'mask' | 'confidence' | 'before' | 'after' | 'none';
 };
 
-// Default centre: a deforestation hotspot in Rondonia, Brazil.
 const DEFAULT_CENTER: [number, number] = [-63.05, -10.35];
 const DEFAULT_ZOOM = 9;
 
-// Free, no-key vector basemap from MapLibre's demo tiles. Replace with an own style URL for prod.
-const BASEMAP_STYLE = 'https://demotiles.maplibre.org/style.json';
+const BASEMAP_STYLE: maplibregl.StyleSpecification = {
+  version: 8,
+  sources: {
+    imagery: {
+      type: 'raster',
+      tiles: [
+        'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+      ],
+      tileSize: 256,
+      attribution:
+        'Imagery &copy; Esri, Maxar, Earthstar Geographics, and the GIS User Community',
+      maxzoom: 19,
+    },
+    labels: {
+      type: 'raster',
+      tiles: [
+        'https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}',
+      ],
+      tileSize: 256,
+      attribution: 'Labels &copy; Esri',
+      maxzoom: 19,
+    },
+  },
+  layers: [
+    { id: 'imagery', type: 'raster', source: 'imagery' },
+    { id: 'labels', type: 'raster', source: 'labels', paint: { 'raster-opacity': 0.6 } },
+  ],
+};
 
 export default function Map({ bbox, onBboxChange, prediction, overlay }: Props) {
   const containerRef = useRef<HTMLDivElement | null>(null);
