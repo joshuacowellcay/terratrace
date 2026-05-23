@@ -1,0 +1,11 @@
+Replace this placeholder with a real demo GIF: `assets/demo.gif`.
+
+Suggested capture flow:
+1. python scripts/serve.py --port 8000 &
+2. cd frontend && npm run dev          # serves on http://localhost:3000
+3. Open the page, click two corners over Rondonia, leave the default dates.
+4. Click Compute, wait for the overlay to render, toggle through before / after /
+   mask / confidence so the GIF shows the full UX.
+5. Capture with Kap, LICEcap, or `ffmpeg -i screen.mov -vf "fps=12,scale=720:-1" -loop 0 assets/demo.gif`.
+6. Keep under 5 MB so GitHub renders it inline; otherwise host externally.
+7. `git rm assets/demo.gif.TODO && git add assets/demo.gif && git commit -m "docs: add demo gif"`.
