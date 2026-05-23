@@ -1,0 +1,75 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+env/
+.eggs/
+*.egg-info/
+*.egg
+build/
+dist/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+
+# Editors / OS
+.DS_Store
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Secrets
+.env
+.env.local
+*.pem
+
+# ML / data
+mlruns/
+mlartifacts/
+wandb/
+
+# Data — keep only the tiny committed sample
+data/*
+!data/.gitkeep
+!data/sample/
+!data/sample/**
+
+# Large rasters anywhere outside data/sample
+*.tif
+*.tiff
+*.nc
+*.h5
+*.hdf5
+*.npz
+!data/sample/**/*.tif
+!data/sample/**/*.tiff
+!data/sample/**/*.npz
+!assets/*.png
+!assets/*.jpg
+
+# Node / Next
+node_modules/
+.next/
+out/
+.turbo/
+*.tsbuildinfo
+next-env.d.ts
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Local artifacts
+results/
+checkpoints_full/

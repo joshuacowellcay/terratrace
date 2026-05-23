@@ -1,0 +1,31 @@
+# Core scientific stack
+numpy>=1.26,<3
+scipy>=1.11
+scikit-learn>=1.4
+matplotlib>=3.8
+pyyaml>=6.0
+tqdm>=4.66
+pillow>=10.2
+
+# Deep learning (CPU wheels work on every platform; MPS/CUDA used automatically when present)
+torch>=2.2,<3
+segmentation-models-pytorch>=0.3.4
+
+# Geospatial
+rasterio>=1.3
+shapely>=2.0
+pyproj>=3.6
+
+# STAC / satellite data
+pystac-client>=0.7
+planetary-computer>=1.0
+
+# Experiment tracking
+mlflow>=2.10,<3
+
+# Serving
+fastapi>=0.110
+uvicorn[standard]>=0.27
+pydantic>=2.6
+pydantic-settings>=2.2
+httpx>=0.27
