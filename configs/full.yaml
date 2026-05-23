@@ -1,0 +1,38 @@
+# Full training config — wider model, more epochs, intended for a GPU run.
+#
+# Use this when you have CUDA or want to push quality further. On a single modern GPU the
+# whole run takes a few hours and lands meaningfully above fast.yaml on IoU. On CPU it is
+# *not* recommended (would take many hours).
+
+name: full
+manifest_path: data/processed/manifest.json
+checkpoint_dir: checkpoints
+checkpoint_name: full.pt
+
+mlflow_tracking_uri: file:./mlruns
+mlflow_experiment_name: terratrace
+
+device: auto
+seed: 42
+
+epochs: 80
+batch_size: 16
+num_workers: 4
+
+model:
+  in_channels: 4
+  base_channels: 48
+  depth: 5
+
+optimizer:
+  name: adamw
+  lr: 0.0008
+  weight_decay: 0.0001
+
+loss:
+  dice_weight: 0.5
+  bce_weight: 0.5
+  pos_weight: 4.0
+
+augment_train: true
+log_every: 10

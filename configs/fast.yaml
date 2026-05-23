@@ -1,0 +1,41 @@
+# Fast training config — the default, designed to complete on CPU in well under 30 minutes.
+#
+# Defaults are intentionally conservative: ~1.5M-parameter Siamese U-Net (base_channels=24,
+# depth=4) on 128x128 tiles, AdamW @ 1e-3, batch size 8, twenty epochs. On an Apple M-series
+# CPU this takes a couple of minutes; on a recent Intel laptop CPU, well under fifteen.
+#
+# Switch device to "auto" to let an MPS or CUDA GPU accelerate it. Switch to configs/full.yaml
+# for a deeper model + more epochs intended for a GPU run.
+
+name: fast
+manifest_path: data/processed/manifest.json
+checkpoint_dir: checkpoints
+checkpoint_name: fast.pt
+
+mlflow_tracking_uri: file:./mlruns
+mlflow_experiment_name: terratrace
+
+device: auto
+seed: 42
+
+epochs: 20
+batch_size: 8
+num_workers: 0
+
+model:
+  in_channels: 4
+  base_channels: 24
+  depth: 4
+
+optimizer:
+  name: adamw
+  lr: 0.001
+  weight_decay: 0.0001
+
+loss:
+  dice_weight: 0.6
+  bce_weight: 0.4
+  pos_weight: 5.0
+
+augment_train: true
+log_every: 5
