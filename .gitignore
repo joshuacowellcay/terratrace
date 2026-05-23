@@ -70,8 +70,9 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
-# Local artifacts
-results/
+# Local artifacts — keep only the committed metrics.json snapshot the README cites.
+results/*
+!results/metrics.json
 # Commit only the small fast.pt checkpoint that ships with the repo so inference works on a
 # fresh clone. Anything else under checkpoints/ (e.g. full.pt from a GPU training run) is
 # regenerated locally and stays out of git.

@@ -1,0 +1,70 @@
+{
+  "deep_model": {
+    "iou": 0.9584708606335287,
+    "precision": 0.9588014981273408,
+    "recall": 0.9996403432153317,
+    "f1": 0.9787951201106778,
+    "accuracy": 0.993402516904583
+  },
+  "baseline": {
+    "iou": 0.8831818111895642,
+    "precision": 0.896643813153004,
+    "recall": 0.9832845227696998,
+    "f1": 0.9379676523443882,
+    "accuracy": 0.9801892895901161,
+    "calibrated_threshold": 0.42500001192092896
+  },
+  "calibration": {
+    "bin_centers": [
+      0.05,
+      0.15000000000000002,
+      0.25,
+      0.35000000000000003,
+      0.45,
+      0.55,
+      0.6500000000000001,
+      0.75,
+      0.8500000000000001,
+      0.95
+    ],
+    "observed_positive_fraction": [
+      9.419151865586173e-06,
+      0.0017945267027243972,
+      0.003778337500989437,
+      0.009765625,
+      0.014388489536941051,
+      0.0060606058686971664,
+      0.02777777798473835,
+      0.06459330022335052,
+      0.0734693855047226,
+      0.9833833575248718
+    ],
+    "bin_counts": [
+      318500,
+      2229,
+      794,
+      512,
+      417,
+      330,
+      360,
+      418,
+      490,
+      59278
+    ]
+  },
+  "failure_breakdown": {
+    "deep_clean_iou": 0.9622209279751505,
+    "deep_cloudy_iou": 0.9378928305102802,
+    "baseline_clean_iou": 0.9113126402393418,
+    "baseline_cloudy_iou": 0.7526676498655331,
+    "cloudy_threshold": 0.15
+  },
+  "n_test_tiles": 27,
+  "data_source": "synthetic",
+  "region_name": "rondonia",
+  "checkpoint_path": "/Users/joshuadev/Code/terratrace/checkpoints/fast.pt",
+  "figures": {
+    "calibration": "/Users/joshuadev/Code/terratrace/assets/calibration.png",
+    "metrics_comparison": "/Users/joshuadev/Code/terratrace/assets/metrics_comparison.png"
+  }
+}
