@@ -1,0 +1,47 @@
+# Data-pipeline configuration for TerraTrace.
+#
+# Default study region: a small AOI in Rondonia, Brazil (Amazon basin) — a region with
+# well-documented, ongoing deforestation across 2019–2023. The bounding box is intentionally
+# small (~0.3° square ≈ 33 km) and the tile count is capped so the download never runs away.
+# The pipeline first tries to fetch real Sentinel-2 L2A + Hansen GFC labels from the Microsoft
+# Planetary Computer STAC API; if that fails (no network, repeated errors, or
+# TERRATRACE_FORCE_SYNTHETIC=1) it falls back to the procedural synthetic generator. Either
+# way, every downstream component receives the same on-disk layout described in the manifest.
+
+output_dir: data/processed
+sample_dir: data/sample
+sample_tiles: 6
+fetch_mode: auto
+
+real:
+  region_name: rondonia
+  bbox:
+    west: -63.20
+    south: -10.50
+    east: -62.90
+    north: -10.20
+  before_window:
+    start: "2019-06-01"
+    end: "2019-09-30"
+  after_window:
+    start: "2023-06-01"
+    end: "2023-09-30"
+  max_cloud_pct: 20.0
+  max_tiles: 200
+  max_download_mb: 600
+  tile_size: 128
+  bands: [B02, B03, B04, B08]   # Blue, Green, Red, NIR
+
+synthetic:
+  seed: 1337
+  tile_size: 128
+  grid_rows: 12          # 12 x 12 = 144 tiles, divisible by split.grid_size = 4
+  grid_cols: 12
+  cloud_fraction: 0.08
+  seasonal_shift: 0.04
+
+split:
+  grid_size: 4
+  val_blocks: 3
+  test_blocks: 3
+  seed: 42
