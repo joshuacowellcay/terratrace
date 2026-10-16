@@ -3,7 +3,7 @@
 Single entry point: :func:`train`. Deterministic per-seed (numpy + torch + Python random),
 logs every run to a local MLflow store at ``./mlruns``, and saves the best-val-IoU
 checkpoint to ``{checkpoint_dir}/{checkpoint_name}``. ``device='auto'`` picks Apple MPS or
-CUDA when available and falls back to CPU. The CPU path is the contract; defaults in
+CUDA when available and falls back to CPU. The CPU path is the one that matters; defaults in
 :mod:`terratrace.training.config` are chosen so the fast run completes on a single laptop
 core in well under thirty minutes.
 """

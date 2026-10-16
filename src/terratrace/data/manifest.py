@@ -1,4 +1,4 @@
-"""Dataset manifest: the contract between the data pipeline and everything downstream.
+"""Dataset manifest: the interface between the data pipeline and everything downstream.
 
 The manifest is a JSON document that lists every tile, its split assignment, its on-disk
 paths, and provenance (real vs synthetic, region, seed, dates). Training, evaluation, and

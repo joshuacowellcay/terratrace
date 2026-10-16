@@ -2,8 +2,8 @@
 
 This is the real-data path. The pipeline tries it first; any failure (no network, item not
 found, repeated HTTP errors, slow download, missing band, etc.) is converted to a ``None``
-return so the orchestrator can fall back to the synthetic generator. The contract: this
-function either returns a fully usable ``list[Tile]`` or returns ``None``. It never half-fails.
+return so the orchestrator can fall back to the synthetic generator. So this function
+either returns a fully usable ``list[Tile]`` or ``None``, never something partial.
 
 Hansen Global Forest Change is **not** indexed by the Planetary Computer STAC API, so we fetch
 its ``lossyear`` granule directly from the public Google Cloud Storage bucket published by the

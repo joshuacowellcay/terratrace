@@ -9,9 +9,8 @@ split and are never edited by hand; `results/metrics.json` is the source of trut
 ## Caveat: training data is synthetic
 
 The shipped checkpoint was trained and evaluated on a procedurally generated synthetic
-dataset, not on real Sentinel-2 imagery, because the build ran in an environment where the
-Microsoft Planetary Computer fetch was either unavailable or explicitly disabled
-(`TERRATRACE_FORCE_SYNTHETIC=1`). The synthetic generator at
+dataset, not on real Sentinel-2 imagery, because I didn't have Microsoft Planetary Computer
+access when I trained it (the synthetic path is forced with `TERRATRACE_FORCE_SYNTHETIC=1`). The synthetic generator at
 `src/terratrace/data/synthetic.py` produces multi-band before/after image pairs with
 class-imbalanced forest/bare/water regions, cloud cover, seasonal brightness shifts, and a
 known ground-truth deforestation mask.
@@ -21,9 +20,9 @@ inference service, frontend) is source-agnostic. Switching to real data is a sin
 change (`fetch_mode: real` in `configs/pipeline.yaml`) followed by re-running
 `scripts/build_dataset.py && scripts/train.py && scripts/evaluate.py`.
 
-The numbers below are realistic upper bounds, not field-validated results. The deep-vs-baseline
-gap is the more transferable claim; the absolute IoU largely reflects the synthetic
-generator's difficulty.
+Treat the numbers below as an upper bound rather than field results. The gap between the
+deep model and the baseline is the part most likely to hold up on real data; the absolute
+IoU mostly reflects how hard the synthetic generator is.
 
 The committed sample tiles in `data/sample/` are real Sentinel-2 L2A scenes over Rondonia,
 so the inference demo visualises real imagery against the synthetic-trained model.
@@ -41,14 +40,14 @@ so the inference demo visualises real imagery against the synthetic-trained mode
 | Loss | 0.6 x soft Dice + 0.4 x weighted BCE (positive-class weight 5.0), cloud-masked |
 | Optimizer | AdamW, lr 1e-3, weight decay 1e-4 |
 | Training run | 25 epochs, batch size 8, seed 42 |
-| Device | CPU is the contract (< 30 min); auto-detects MPS or CUDA when available |
+| Device | Trains on CPU in under 30 min; uses MPS or CUDA if available |
 
 The encoder is reused (`self.encoder` is one `nn.Module`, called twice). At each spatial
 scale the encoder produces a feature map for "before" and "after"; the decoder receives the
 channel-wise concatenation of the pair as its skip connection. The bottleneck takes the
-concat of the pooled deepest features. See `src/terratrace/models/siamese_unet.py` for the
-rationale behind concat-over-subtract, weight sharing, and no ImageNet pretraining for this
-data.
+concat of the pooled deepest features. The comments in
+`src/terratrace/models/siamese_unet.py` explain why I concatenate rather than subtract,
+share weights, and skip ImageNet pretraining for this data.
 
 ## Intended use
 
@@ -108,21 +107,20 @@ single-pixel threshold. Calibration (`assets/calibration.png`) is good at the ex
 
 ## Limitations and failure modes
 
-* **Synthetic-data ceiling.** The current numbers describe a generator whose forest-loss
+* **Synthetic data.** The current numbers describe a generator whose forest-loss
   signal is large (forest to bare equals a high NDVI drop) and whose noise is bounded. Real
   Sentinel-2 data has subtler signals (selective logging, haze, BRDF effects, seasonal
   understorey changes); expect lower absolute IoU after the switch.
 * **Cloudy pixels.** Pixels masked as cloudy in either timestamp are excluded from both
   training and evaluation loss via `valid_pixel_weights`. The model never sees them as
-  training signal; predictions over heavy cloud should be discarded by the caller, and the
-  inference service does so with a clear message rather than returning a wrong silent
-  answer.
+  training signal. Predictions over heavy cloud should be thrown away, and the inference
+  service does that and returns a message saying so.
 * **Single AOI.** The trained model has never seen another biome. Forest-loss patterns in
   Borneo (peat fires) or temperate forests (clear-cut blocks) would be out-of-distribution
   and demand retraining.
-* **Class imbalance pushes toward over-detection.** Recall is essentially 1.0, precision
-  ~0.97; the model occasionally flags non-loss pixels as loss. Acceptable for a
-  human-in-the-loop monitoring tool, not for unsupervised hectares accounting.
+* **Class imbalance pushes toward over-detection.** Recall is about 1.0 and precision
+  about 0.97, so the model sometimes flags pixels as loss when they aren't. That's fine for
+  a tool where a person checks the output, but not for counting hectares automatically.
 * **The committed checkpoint is from the "fast" config.** A wider and deeper "full" run
   (`configs/full.yaml`) on a GPU should do better, especially on real data.
 
@@ -141,7 +139,7 @@ python scripts/evaluate.py
 ```
 
 To switch to the real-data path: set `fetch_mode: real` in `configs/pipeline.yaml`,
-ensure outbound HTTPS, then re-run all three steps. The manifest at
+make sure you have internet access, then run all three steps again. The manifest at
 `data/processed/manifest.json` will show `source: "real"` and include the bbox and date
 windows used.
 

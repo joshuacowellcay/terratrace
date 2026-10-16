@@ -1,6 +1,6 @@
 # Optional containerised dev: brings up backend + frontend together.
-# The canonical, must-work setup path is the venv + npm one documented in README.md;
-# Docker is provided for one-command runs and CI parity.
+# The main setup path is the venv + npm one in README.md; this is here for
+# one-command runs.
 
 services:
   backend:
